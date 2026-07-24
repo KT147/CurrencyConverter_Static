@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -15,7 +17,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
-using System.Configuration;
+using Newtonsoft.Json;
 
 namespace CurrencyConverter_Static
 {
@@ -24,6 +26,29 @@ namespace CurrencyConverter_Static
     /// </summary>
     public partial class MainWindow : Window
     {
+
+        Root val = new Root();
+
+        public class Root
+        {
+            public Rate rates { get; set; }
+            public long timestamp;
+            public string license;
+        }
+
+        public class Rate
+        {
+            public double INR { get; set; }
+            public double JPY { get; set; }
+            public double USD { get; set; }
+            public double NZD { get; set; }
+            public double EUR { get; set; }
+            public double CAD { get; set; }
+            public double ISK { get; set; }
+            public double PHP { get; set; }
+            public double DKK { get; set; }
+            public double CZK { get; set; }
+        }
 
         SqlConnection con = new SqlConnection();
 
@@ -38,8 +63,41 @@ namespace CurrencyConverter_Static
         public MainWindow()
         {
             InitializeComponent();
+            //BindCurrency();
+            //GetData();
+
+            ClearControls();
+            GetValue();
+        }
+
+        private async void GetValue()
+        {
+            val = await GetDataGetMethod<Root>("https://openexchangerates.org/api/latest.json?app_id=a8ea9579748649f1a4932ecbcf43be54"); //API Link
             BindCurrency();
-            GetData();
+        }
+
+        public static async Task<Root> GetDataGetMethod<T>(string url)
+        {
+            var ss = new Root();
+            try
+            {
+                using (var client = new HttpClient())
+                {
+                    client.Timeout = TimeSpan.FromMinutes(1);
+                    HttpResponseMessage response = await client.GetAsync(url);
+                    if (response.StatusCode == System.Net.HttpStatusCode.OK)
+                    {
+                        var ResponceString = await response.Content.ReadAsStringAsync();
+                        var ResponceObject = JsonConvert.DeserializeObject<Root>(ResponceString);
+                        return ResponceObject;
+                    }
+                    return ss;
+                }
+            }
+            catch
+            {
+                return ss;
+            }
         }
 
         public void mycon()
@@ -49,44 +107,87 @@ namespace CurrencyConverter_Static
             con.Open();
         }
 
+        //private void BindCurrency()
+        //{
+
+        //    mycon();
+
+        //    DataTable dt = new DataTable();
+        //    cmd = new SqlCommand("SELECT Id, CurrencyName FROM Currency_Master", con);
+
+        //    cmd.CommandType = CommandType.Text;
+
+        //    da = new SqlDataAdapter(cmd);
+
+        //    da.Fill(dt);
+
+        //    DataRow newRow = dt.NewRow();
+        //    newRow["Id"] = 0;
+        //    newRow["CurrencyName"] = "--Select--";
+
+        //    dt.Rows.InsertAt(newRow, 0);
+
+        //    if (dt != null && dt.Rows.Count > 0)
+        //    {
+        //        //Assign the datatable data to from currency combobox using ItemSource property.
+        //        cmbFromCurrency.ItemsSource = dt.DefaultView;
+
+        //        //Assign the datatable data to to currency combobox using ItemSource property.
+        //        cmbToCurrency.ItemsSource = dt.DefaultView;
+        //    }
+        //    con.Close();
+
+        //    cmbFromCurrency.DisplayMemberPath = "CurrencyName";
+        //    cmbFromCurrency.SelectedValuePath = "Id";
+        //    cmbFromCurrency.SelectedIndex = 0;
+
+        //    cmbToCurrency.DisplayMemberPath = "CurrencyName";
+        //    cmbToCurrency.SelectedValuePath = "Id";
+        //    cmbToCurrency.SelectedIndex = 0;
+
+        //}
+
         private void BindCurrency()
         {
-
-            mycon();
-
+            //Create an object Datatable
             DataTable dt = new DataTable();
-            cmd = new SqlCommand("SELECT Id, CurrencyName FROM Currency_Master", con);
 
-            cmd.CommandType = CommandType.Text;
+            //Add display column in DataTable
+            dt.Columns.Add("Text");
 
-            da = new SqlDataAdapter(cmd);
+            //Add value column in DataTable
+            dt.Columns.Add("Rate");
 
-            da.Fill(dt);
+            //Add rows in Datatable with text and value. Set a value which fetch from API
+            dt.Rows.Add("--SELECT--", 0);
+            dt.Rows.Add("INR", val.rates.INR);
+            dt.Rows.Add("USD", val.rates.USD);
+            dt.Rows.Add("NZD", val.rates.NZD);
+            dt.Rows.Add("JPY", val.rates.JPY);
+            dt.Rows.Add("EUR", val.rates.EUR);
+            dt.Rows.Add("CAD", val.rates.CAD);
+            dt.Rows.Add("ISK", val.rates.ISK);
+            dt.Rows.Add("PHP", val.rates.PHP);
+            dt.Rows.Add("DKK", val.rates.DKK);
+            dt.Rows.Add("CZK", val.rates.CZK);
 
-            DataRow newRow = dt.NewRow();
-            newRow["Id"] = 0;
-            newRow["CurrencyName"] = "--Select--";
+            //Datatable data assign From currency Combobox
+            cmbFromCurrency.ItemsSource = dt.DefaultView;
 
-            dt.Rows.InsertAt(newRow, 0);
+            //DisplayMemberPath property is used to display data in Combobox
+            cmbFromCurrency.DisplayMemberPath = "Text";
 
-            if (dt != null && dt.Rows.Count > 0)
-            {
-                //Assign the datatable data to from currency combobox using ItemSource property.
-                cmbFromCurrency.ItemsSource = dt.DefaultView;
+            //SelectedValuePath property is used to set value in Combobox
+            cmbFromCurrency.SelectedValuePath = "Rate";
 
-                //Assign the datatable data to to currency combobox using ItemSource property.
-                cmbToCurrency.ItemsSource = dt.DefaultView;
-            }
-            con.Close();
-
-            cmbFromCurrency.DisplayMemberPath = "CurrencyName";
-            cmbFromCurrency.SelectedValuePath = "Id";
+            //SelectedIndex property is used for when bind Combobox it's default selected item is first
             cmbFromCurrency.SelectedIndex = 0;
 
-            cmbToCurrency.DisplayMemberPath = "CurrencyName";
-            cmbToCurrency.SelectedValuePath = "Id";
+            //All Property Set For To Currency Combobox As From Currency Combobox
+            cmbToCurrency.ItemsSource = dt.DefaultView;
+            cmbToCurrency.DisplayMemberPath = "Text";
+            cmbToCurrency.SelectedValuePath = "Rate";
             cmbToCurrency.SelectedIndex = 0;
-
         }
 
         private void Convert_Click(object sender, RoutedEventArgs e)
@@ -141,7 +242,7 @@ namespace CurrencyConverter_Static
 
                 //Calculation for currency converter is From Currency value multiply(*) 
                 // with amount textbox value and then the total is divided(/) with To Currency value
-                ConvertedValue = (double.Parse(cmbFromCurrency.SelectedValue.ToString()) * double.Parse(txtCurrency.Text)) / double.Parse(cmbToCurrency.SelectedValue.ToString());
+                ConvertedValue = (double.Parse(cmbToCurrency.SelectedValue.ToString()) * double.Parse(txtCurrency.Text)) / double.Parse(cmbFromCurrency.SelectedValue.ToString());
 
                 //Show in label converted currency and converted currency name.
                 lblCurrency.Content = cmbToCurrency.Text + " " + ConvertedValue.ToString("N3");
